@@ -1,57 +1,82 @@
-*.pyc
+# --- Security & Credentials ---
+# Environment files (deny all by default)
+.env*
+!.env.example
+!.env.template
+
+# Keys and certificates
+*.pem
+*.key
+*.pub
+*.crt
+*.p12
+*.pfx
+secrets.*
+credentials.*
+
+# --- Python ---
 __pycache__/
-.pytest_cache/
-*.egg-info/
-dist/
+*.py[cod]
+*$py.class
+*.so
+.Python
 build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.tox/
+.nox/
+.coverage
+.cache
+htmlcov/
+venv/
+.venv/
+env/
+.env/
+ipython_log.py
 
-# Environment
-.env
-.env.local
-.env.*.local
+# --- Node / JavaScript ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.next/
+out/
+.vercel
+.turbo
 
-# IDE
+# --- IDEs / Editors ---
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 .DS_Store
+Thumbs.db
+desktop.ini
 
-# Docker
-.dockerignore
-
-# Node
-node_modules/
-npm-debug.log
-yarn-error.log
-.next/
-out/
-
-# Database
+# --- Database ---
 *.db
 *.sqlite
 postgres_data/
 redis_data/
 
-# Logs
-*.log
-logs/
-
-# Certs
-devops/ssl/cert.pem
-devops/ssl/key.pem
-
-# Cache
-.cache/
-*.cache
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Project specific
+# --- Project Specific ---
 data/
 *.parquet
 videos/
 uploads/
+logs/
+*.log
