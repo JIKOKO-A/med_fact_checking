@@ -1,0 +1,42 @@
+# Backend Requirements
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+redis==5.0.1
+pydantic==2.4.2
+pydantic-settings==2.0.3
+python-multipart==0.0.6
+python-dotenv==1.0.0
+aiofiles==23.2.1
+
+# ML/NLP Dependencies
+torch==2.1.1
+transformers==4.35.0
+datasets==2.14.6
+numpy==1.24.3
+pandas==2.1.1
+scikit-learn==1.3.2
+tqdm==4.66.1
+
+# Audio/Video Processing
+librosa==0.10.0
+openai-whisper
+moviepy==1.0.3
+yt-dlp
+sentencepiece
+sacremoses
+
+# Utilities
+httpx==0.25.1
+requests==2.31.0
+python-jose[cryptography]==3.3.0
+
+# Production
+gunicorn==21.2.0
+
+# Development
+pytest==7.4.3
+pytest-asyncio==0.21.1
+black==23.11.0
+flake8==6.1.0

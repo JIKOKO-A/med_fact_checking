@@ -1,0 +1,57 @@
+*.pyc
+__pycache__/
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Docker
+.dockerignore
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+.next/
+out/
+
+# Database
+*.db
+*.sqlite
+postgres_data/
+redis_data/
+
+# Logs
+*.log
+logs/
+
+# Certs
+devops/ssl/cert.pem
+devops/ssl/key.pem
+
+# Cache
+.cache/
+*.cache
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+data/
+*.parquet
+videos/
+uploads/

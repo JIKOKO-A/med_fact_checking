@@ -1,0 +1,38 @@
+# Frontend Dockerfile
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files and pre-installed node_modules from host
+COPY frontend/package*.json ./
+RUN npm install
+
+COPY frontend/ .
+
+RUN npm run build
+
+# Production image
+FROM node:18-alpine
+
+WORKDIR /app
+
+COPY frontend/package*.json ./
+
+# Copy only production node_modules from builder
+COPY --from=builder /app/node_modules ./node_modules
+
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+
+# Non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nextjs -u 1001
+
+USER nextjs
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+
+CMD ["npm", "start"]
