@@ -37,7 +37,7 @@ class VerificationService:
         verification = self.rag_verifier.verify(claim_data["claim"])
         
         # Ensure all fields for VerificationResult schema are present
-        return {
+        res_dict = {
             "original_text": text,
             "original_language": language,
             "darija_latin": darija_data.get("latin", ""),
@@ -50,6 +50,27 @@ class VerificationService:
             "medical_domain": verification.get("domain", "general_medicine"),
             "processing_time_ms": round((time.time() - start_time) * 1000, 2)
         }
+
+        # Create database record
+        from app.models.claim import ClaimRecord
+        new_claim = ClaimRecord(
+            original_text=res_dict["original_text"],
+            original_language=res_dict["original_language"],
+            darija_latin=res_dict["darija_latin"],
+            darija_arabic=res_dict["darija_arabic"],
+            claim=res_dict["claim"],
+            claim_type=res_dict["claim_type"],
+            verification_label=res_dict["verification_label"],
+            explanation=res_dict["explanation"],
+            confidence_score=res_dict["confidence_score"],
+            medical_domain=res_dict["medical_domain"],
+            user_id=user_id
+        )
+        db.add(new_claim)
+        db.commit()
+        db.refresh(new_claim)
+        
+        return res_dict
 
     async def verify_video_url(self, url: str, language: str, db, user_id: Optional[str] = None) -> Dict:
         start_time = time.time()
@@ -111,5 +132,47 @@ class VerificationService:
                     os.remove(audio_path)
                 except Exception:
                     pass
+
+    async def verify_batch(self, texts: List[str], language: str, db, user_id: Optional[str] = None) -> List:
+        from app.schemas import VerificationResult
+        results = []
+        for text in texts:
+            res = await self.verify_claim(text, language, db, user_id)
+            results.append(VerificationResult(**res))
+        return results
+
+    def get_verification_stats(self, db, days: int = 7) -> Dict:
+        from app.models.claim import ClaimRecord
+        from sqlalchemy import func
+        from datetime import datetime, timedelta
+        
+        start_date = datetime.utcnow() - timedelta(days=days)
+        claims = db.query(ClaimRecord).filter(ClaimRecord.created_at >= start_date).all()
+        
+        total = len(claims)
+        true_c = sum(1 for c in claims if c.verification_label == "true")
+        false_c = sum(1 for c in claims if c.verification_label == "false")
+        partial_c = sum(1 for c in claims if c.verification_label == "partially_true")
+        unverifiable_c = sum(1 for c in claims if c.verification_label == "unverifiable")
+        
+        avg_conf = sum(c.confidence_score for c in claims) / total if total > 0 else 0.0
+        
+        domain_dist = {}
+        for c in claims:
+            dom = c.medical_domain or "unknown"
+            domain_dist[dom] = domain_dist.get(dom, 0) + 1
+            
+        mis_rate = (false_c + partial_c) / total if total > 0 else 0.0
+        
+        return {
+            "total_verified": total,
+            "true_count": true_c,
+            "false_count": false_c,
+            "partial_count": partial_c,
+            "unverifiable_count": unverifiable_c,
+            "avg_confidence_score": avg_conf,
+            "domain_distribution": domain_dist,
+            "misinformation_rate": mis_rate
+        }
 
 verification_service = VerificationService()
