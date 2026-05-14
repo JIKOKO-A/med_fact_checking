@@ -1,76 +1,89 @@
 import logging,asyncio,time
 from typing import Dict, Optional, List
+import sys
+import os
 
 logger = logging.getLogger(__name__)
 
-class DummyClaimExtractor:
-    def extract(self, text, lang):
-        return {"claim": text, "claim_type": "general", "entities": []}
+# Support both local and Docker paths for ml_nlp
+local_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
+docker_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.exists(os.path.join(local_root, "ml_nlp")) and local_root not in sys.path:
+    sys.path.insert(0, local_root)
+if os.path.exists(os.path.join(docker_root, "ml_nlp")) and docker_root not in sys.path:
+    sys.path.insert(0, docker_root)
 
-class DummyTranslator:
-    def translate(self, text, scripts=None):
-        return {"latin": text, "arabic": text}
-
-class DummyRAGVerifier:
-    def verify(self, claim, claim_type="general", language="ar"):
-        return {"label": "true", "confidence": 0.8, "explanation": "Verified", "domain": "general_medicine"}
+from ml_nlp.pipeline.claim_extractor_v2 import get_claim_extractor
+from ml_nlp.pipeline.darija_translator import get_darija_translator
+from ml_nlp.pipeline.rag_verifier import get_rag_verifier
 
 class VerificationService:
     def __init__(self):
         try:
-            self.claim_extractor = DummyClaimExtractor()
-            self.darija_translator = DummyTranslator()
-            self.rag_verifier = DummyRAGVerifier()
-            logger.info("? VerificationService initialized")
+            self.claim_extractor = get_claim_extractor()
+            self.darija_translator = get_darija_translator()
+            self.rag_verifier = get_rag_verifier()
+            logger.info("✅ VerificationService initialized with real ML pipeline")
         except Exception as e:
-            logger.error(f"? Init failed: {e}", exc_info=True)
+            logger.error(f"❌ Init failed: {e}", exc_info=True)
             raise
     
-    async def verify_claim(self, text: str, language: str, db, user_id: Optional[str] = None) -> Dict:
+    async def verify_claim(self, text: str, language: str, db, user_id: Optional[str] = None) -> List[Dict]:
         start_time = time.time()
         if not text or len(text) < 10 or len(text) > 5000:
             raise ValueError("Text must be 10-5000 characters")
         
-        # Run extractor and translator (mocked or synchronous for now)
-        claim_data = self.claim_extractor.extract(text, language)
-        darija_data = self.darija_translator.translate(claim_data["claim"])
-        verification = self.rag_verifier.verify(claim_data["claim"])
+        # Run extractor
+        claims_data = self.claim_extractor.extract(text, language)
         
-        # Ensure all fields for VerificationResult schema are present
-        res_dict = {
-            "original_text": text,
-            "original_language": language,
-            "darija_latin": darija_data.get("latin", ""),
-            "darija_arabic": darija_data.get("arabic", ""),
-            "claim": claim_data.get("claim", text),
-            "claim_type": claim_data.get("claim_type", "general"),
-            "verification_label": verification.get("label", "unverifiable"),
-            "explanation": verification.get("explanation", "Verification processing complete."),
-            "confidence_score": float(verification.get("confidence", 0.0)),
-            "medical_domain": verification.get("domain", "general_medicine"),
-            "processing_time_ms": round((time.time() - start_time) * 1000, 2)
-        }
-
-        # Create database record
+        final_results = []
         from app.models.claim import ClaimRecord
-        new_claim = ClaimRecord(
-            original_text=res_dict["original_text"],
-            original_language=res_dict["original_language"],
-            darija_latin=res_dict["darija_latin"],
-            darija_arabic=res_dict["darija_arabic"],
-            claim=res_dict["claim"],
-            claim_type=res_dict["claim_type"],
-            verification_label=res_dict["verification_label"],
-            explanation=res_dict["explanation"],
-            confidence_score=res_dict["confidence_score"],
-            medical_domain=res_dict["medical_domain"],
-            user_id=user_id
-        )
-        db.add(new_claim)
-        db.commit()
-        db.refresh(new_claim)
         
-        return res_dict
+        for claim_data in claims_data:
+            claim_text = claim_data.get("claim", text)
+            darija_data = self.darija_translator.translate(claim_text)
+            verification = self.rag_verifier.verify(claim_text)
+            
+            # Ensure all fields for VerificationResult schema are present
+            res_dict = {
+                "original_text": text,
+                "original_language": language,
+                "darija_latin": darija_data.get("latin", ""),
+                "darija_arabic": darija_data.get("arabic", ""),
+                "claim": claim_text,
+                "claim_type": claim_data.get("claim_type", "general"),
+                "verification_label": verification.get("label", "unverifiable"),
+                "explanation": verification.get("explanation", "Verification processing complete."),
+                "confidence_score": float(verification.get("confidence", 0.0)),
+                "medical_domain": verification.get("domain", "general_medicine"),
+                "source_url": verification.get("source_url", ""),
+                "processing_time_ms": round((time.time() - start_time) * 1000, 2)
+            }
+
+            # Create database record
+            new_claim = ClaimRecord(
+                original_text=res_dict["original_text"],
+                original_language=res_dict["original_language"],
+                darija_latin=res_dict["darija_latin"],
+                darija_arabic=res_dict["darija_arabic"],
+                claim=res_dict["claim"],
+                claim_type=res_dict["claim_type"],
+                verification_label=res_dict["verification_label"],
+                explanation=res_dict["explanation"],
+                confidence_score=res_dict["confidence_score"],
+                medical_domain=res_dict["medical_domain"],
+                source_url=res_dict["source_url"],
+                user_id=user_id
+            )
+            db.add(new_claim)
+            db.commit()
+            db.refresh(new_claim)
+            
+            res_dict["claim_id"] = new_claim.id
+            res_dict["timestamp"] = new_claim.created_at
+            final_results.append(res_dict)
+            
+        return final_results
 
     async def verify_video_url(self, url: str, language: str, db, user_id: Optional[str] = None) -> Dict:
         start_time = time.time()
@@ -106,9 +119,8 @@ class VerificationService:
             if len(full_text) < 10:
                 results = []
             else:
-                # verify_claim is already async
-                vr = await self.verify_claim(full_text[:5000], language, db, user_id)
-                results = [vr]
+                # verify_claim is already async and returns a list
+                results = await self.verify_claim(full_text[:5000], language, db, user_id)
                 
             # Translate to English (use thread for blocking translation)
             raw_translation = ""
@@ -137,8 +149,9 @@ class VerificationService:
         from app.schemas import VerificationResult
         results = []
         for text in texts:
-            res = await self.verify_claim(text, language, db, user_id)
-            results.append(VerificationResult(**res))
+            res_list = await self.verify_claim(text, language, db, user_id)
+            for res in res_list:
+                results.append(VerificationResult(**res))
         return results
 
     def get_verification_stats(self, db, days: int = 7) -> Dict:

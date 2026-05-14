@@ -9,26 +9,21 @@ import logging
 logger = logging.getLogger(__name__)
 
 class EnglishTranslator:
-    """Translates text to English using local transformers model"""
+    """Translates text to English using Google Translate via deep-translator"""
     
     def __init__(self):
         """Initialize translation model"""
         self.translator = None
         
-        # Try to load local transformers model
         try:
-            from transformers import pipeline
-            # Helsinki-NLP/opus-mt-ar-en is great for local Arabic to English
-            self.translator = pipeline(
-                "translation", 
-                model="Helsinki-NLP/opus-mt-ar-en"
-            )
-            logger.info("✅ English Translator (Helsinki-NLP/opus-mt-ar-en) loaded")
+            from deep_translator import GoogleTranslator
+            self.translator = GoogleTranslator(source='auto', target='en')
+            logger.info("✅ English Translator (Google Translate) loaded")
+        except ImportError:
+            logger.warning("⚠️ deep-translator not installed. Will use fallback.")
         except Exception as e:
-            logger.warning(f"⚠️  English Translator ML model not available: {e}. Will use mock fallback.")
+            logger.warning(f"⚠️ English Translator init failed: {e}")
             
-        logger.info("✅ English Translator initialized")
-        
     def translate(self, text: str) -> str:
         """
         Translate text to English
@@ -38,11 +33,10 @@ class EnglishTranslator:
             
         if self.translator:
             try:
-                # The model requires sentences. We can truncate if extremely long, or use as is
-                # Pipeline takes input strings directly. Keep it within 512 tokens.
-                truncated = text[:1500] 
-                result = self.translator(truncated)
-                return result[0]['translation_text']
+                # deep-translator handles up to 5000 chars per request
+                truncated = text[:4999]
+                result = self.translator.translate(truncated)
+                return result
             except Exception as e:
                 logger.error(f"ML translation to English failed: {e}")
                 return self._mock_translate(text)
@@ -51,7 +45,6 @@ class EnglishTranslator:
             
     def _mock_translate(self, text: str) -> str:
         """Mock translation for dev environments without the model downloaded"""
-        # Basic mock, maybe matching some known phrases or just returning English warning
         mock_map = {
             "سميا تتالح بوايل برد فقق": "Fever can only be treated with cold water.",
             "الحمى تعالج بالماء البارد فقط": "Fever is treated with cold water only."

@@ -65,6 +65,8 @@ services:
       - ./backend:/app
       - ./ml_nlp:/app/ml_nlp
       - C:/Users/chakr/.cache/whisper:/home/appuser/.cache/whisper
+      - C:/Users/chakr/.cache/huggingface:/home/appuser/.cache/huggingface
+      - C:/Users/chakr/Desktop/fact-checking-main/master_dataset_sante_multilingueV1.xls:/data/master_dataset_sante_multilingueV1.xls:ro
     networks:
       - medical_network
     healthcheck:

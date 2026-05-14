@@ -26,6 +26,7 @@ moviepy==1.0.3
 yt-dlp
 sentencepiece
 sacremoses
+deep-translator==1.11.4
 
 # Utilities
 httpx==0.25.1

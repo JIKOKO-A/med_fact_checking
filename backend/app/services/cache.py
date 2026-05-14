@@ -6,6 +6,7 @@ logger = logging.getLogger(__name__)
 class CacheService:
     def __init__(self):
         self.memory_cache = {}
+        self.redis_available = False
         import os
         redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
         try:
@@ -23,20 +24,34 @@ class CacheService:
             logger.warning(f"⚠️ Redis connection failed: {e}. Using memory cache.")
     
     def set(self, key: str, value: Dict) -> bool:
+        if self.redis_available and self.client:
+            try:
+                self.client.set(key, json.dumps(value), ex=86400) # Expire in 24 hours
+                return True
+            except Exception as e:
+                logger.warning(f"Redis set failed: {e}")
+                
         self.memory_cache[key] = value
         return True
     
     def get(self, key: str) -> Optional[Dict]:
+        if self.redis_available and self.client:
+            try:
+                data = self.client.get(key)
+                if data:
+                    return json.loads(data)
+            except Exception as e:
+                logger.warning(f"Redis get failed: {e}")
+                
         return self.memory_cache.get(key)
     
     def cache_verification_result(self, text: str, result: Dict) -> bool:
-        key = hashlib.sha256(text.encode()).hexdigest()
-        self.memory_cache[key] = result
-        return True
+        key = "verification:" + hashlib.sha256(text.encode()).hexdigest()
+        return self.set(key, result)
     
     def get_cached_verification(self, text: str) -> Optional[Dict]:
-        key = hashlib.sha256(text.encode()).hexdigest()
-        return self.memory_cache.get(key)
+        key = "verification:" + hashlib.sha256(text.encode()).hexdigest()
+        return self.get(key)
     
     def is_healthy(self) -> bool:
         return True

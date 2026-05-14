@@ -18,6 +18,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy requirements
 COPY backend/requirements.txt .
 
+# Set HuggingFace cache to appuser home so models persist via volume mount
+ENV HF_HOME=/home/appuser/.cache/huggingface
+ENV TRANSFORMERS_CACHE=/home/appuser/.cache/huggingface
+ENV SENTENCE_TRANSFORMERS_HOME=/home/appuser/.cache/huggingface
+
 # Upgrade pip and install build tools first
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 

@@ -106,5 +106,37 @@ def export_claims_csv(
     db: Session = Depends(get_db)
 ):
     """Export claims as CSV (for analytics)"""
-    # To implement: return streaming CSV response
-    raise NotImplementedError("CSV export in development")
+    import io
+    import csv
+    from fastapi import Response
+    
+    query = db.query(ClaimRecord)
+    if domain:
+        query = query.filter(ClaimRecord.medical_domain == domain)
+    if label:
+        query = query.filter(ClaimRecord.verification_label == label)
+        
+    claims = query.order_by(ClaimRecord.created_at.desc()).all()
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "id", "original_text", "language", "claim", "claim_type", 
+        "verification_label", "confidence_score", "medical_domain", 
+        "source_url", "created_at"
+    ])
+    
+    for c in claims:
+        writer.writerow([
+            c.id, c.original_text, c.original_language, c.claim, c.claim_type,
+            c.verification_label, c.confidence_score, c.medical_domain, 
+            c.source_url, c.created_at
+        ])
+    
+    output.seek(0)
+    
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=medical_claims_export.csv"}
+    )

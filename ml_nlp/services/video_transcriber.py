@@ -123,8 +123,8 @@ class AudioProcessor:
         transcription = self.transcriber.transcribe(video_path, language)
         
         # Extract claims from transcription
-        from claim_extractor import ClaimExtractor
-        extractor = ClaimExtractor()
+        from ml_nlp.pipeline.claim_extractor_v2 import get_claim_extractor
+        extractor = get_claim_extractor()
         
         claims = []
         for segment in transcription.get("segments", []):

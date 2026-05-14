@@ -50,28 +50,26 @@ async def verify_claim(
             )
         
         # Run verification pipeline
-        result = await verification_service.verify_claim(
+        results = await verification_service.verify_claim(
             text=request.text,
             language=request.language or "ar",
             db=db,
             user_id=request.user_id
         )
         
-        # Retrieve created claim record
-        claim = db.query(ClaimRecord).filter(
-            ClaimRecord.original_text == request.text
-        ).order_by(ClaimRecord.created_at.desc()).first()
-        
         elapsed_ms = round((time.time() - start_time) * 1000, 2)
         
-        logger.info(f"✅ Verification complete (id={claim.id if claim else 'N/A'}, time={elapsed_ms}ms)")
+        claim_ids = [r.get("claim_id", 0) for r in results]
+        timestamp = results[0].get("timestamp") if results else None
+        
+        logger.info(f"✅ Verification complete (ids={claim_ids}, time={elapsed_ms}ms)")
         
         return VerifyResponse(
             success=True,
-            data=result,
-            claim_id=claim.id if claim else 0,
-            timestamp=claim.created_at if claim else None,
-            message=f"Claim verified in {elapsed_ms}ms"
+            data=results,
+            claim_ids=claim_ids,
+            timestamp=timestamp,
+            message=f"Claims verified in {elapsed_ms}ms"
         )
     
     except HTTPException:

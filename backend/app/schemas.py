@@ -65,8 +65,8 @@ class VerificationResult(BaseModel):
 class VerifyResponse(BaseModel):
     """Response for verify endpoint"""
     success: bool
-    data: VerificationResult
-    claim_id: int
+    data: list[VerificationResult]
+    claim_ids: list[int]
     timestamp: datetime
     message: Optional[str] = None
 
