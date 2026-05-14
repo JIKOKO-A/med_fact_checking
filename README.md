@@ -8,4 +8,4 @@ An AI-powered web application for discovering, translating, and verifying medica
 - **Robust NLP Pipeline**: Offline claim extraction and Translation via HuggingFace Transformers.
 - **FastAPI Backend**: Resilient and scalable verification service.
 
-*(See `HOW_TO_RUN.md` for instructions on starting the platform.)*
+
